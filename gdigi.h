@@ -29,11 +29,14 @@ typedef enum {
     DEBUG_GROUP     = (1 << 3),     // Modifier group
     DEBUG_HEX       = (1 << 4),     // Dump message contents in hex.
     DEBUG_XML       = (1 << 5),
-    DEBUG_VERBOSE   = (1 << 6),
+    DEBUG_API       = (1 << 6),
+    DEBUG_VERBOSE   = (1 << 7),
 } debug_flags_t;
 
 void debug_msg (debug_flags_t, char *fmt, ...);
 gboolean debug_flag_is_set (debug_flags_t flag);
+
+#define GDIGI_KEY(_pos, _id) GINT_TO_POINTER((_pos << 16) | _id)
 
 #define GNX_CHANNEL_POSITION 7
 #define GNX_CHANNEL_AMP 260

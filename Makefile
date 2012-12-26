@@ -4,7 +4,7 @@ EXTRA_LDFLAGS ?=
 CFLAGS := $(shell pkg-config --cflags glib-2.0 gio-2.0 gtk+-3.0 libxml-2.0) -Wall -g -ansi -std=c99 $(EXTRA_CFLAGS)
 LDFLAGS = $(EXTRA_LDFLAGS) -Wl,--as-needed
 LDADD := $(shell pkg-config --libs glib-2.0 gio-2.0 gtk+-3.0 gthread-2.0 alsa libxml-2.0) -lexpat -lm
-OBJECTS = gdigi.o gui.o effects.o preset.o gtkknob.o preset_xml.o
+OBJECTS = gdigi.o gui.o effects.o preset.o gtkknob.o preset_xml.o gdigi_api_server.o
 DEPFILES = $(foreach m,$(OBJECTS:.o=),.$(m).m)
 
 .PHONY : clean distclean all
@@ -27,7 +27,7 @@ clean:
 
 distclean : clean
 	rm -f .*.m
-	rm -r images/gdigi_icon.h
+	rm -f images/gdigi_icon.h
 	rm -f gdigi
 
 install: gdigi

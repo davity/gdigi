@@ -15,6 +15,8 @@
  */
 
 #include <stdio.h>
+#include <sys/types.h>
+#include <sys/un.h>
 #include <gtk/gtk.h>
 #include <gio/gio.h>
 #include <getopt.h>
@@ -23,6 +25,8 @@
 #include "gdigi.h"
 #include "gdigi_xml.h"
 #include "gui.h"
+#include "gdigi_api.h"
+#include "gdigi_api_server.h"
 
 static unsigned char device_id = 0x7F;
 static unsigned char family_id = 0x7F;
@@ -438,6 +442,14 @@ void push_message(GString *msg)
                 g_string_free(ipv, TRUE);
             }
 
+            /*
+             * If there's an outstanding request for a parameter's value,
+             * send the reply.
+             */
+            gdigi_api_server_get_parameter_response(param->id,
+                                                    param->position,
+                                                    param->value);
+
             GDK_THREADS_ENTER();
             apply_setting_param_to_gui(param);
             GDK_THREADS_LEAVE();
@@ -578,6 +590,8 @@ gpointer read_data_thread(gboolean *stop)
     struct pollfd *pfds;
     GString *string = NULL;
 
+    gdigi_api_server_init();
+
     npfds = snd_rawmidi_poll_descriptors_count(input);
     pfds = alloca(npfds * sizeof(struct pollfd));
     snd_rawmidi_poll_descriptors(input, pfds, npfds);
@@ -587,12 +601,14 @@ gpointer read_data_thread(gboolean *stop)
         int i, length;
         unsigned short revents;
 
+        gdigi_api_server_select();
+
         /* SysEx messages can't contain bytes with 8th bit set.
            memset our buffer to 0xFF, so if for some reason we'll
            get out of reply bounds, we'll catch it */
         memset(buf, '\0', sizeof(buf));
 
-        err = poll(pfds, npfds, 200);
+        err = poll(pfds, npfds, 50);
         if (err < 0 && errno == EINTR)
             break;
         if (err < 0) {

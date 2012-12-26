@@ -341,7 +341,7 @@ static WidgetTreeElem *widget_tree_add(GObject *widget, gint id, gint position, 
     el->value = value;
     el->x = x;
 
-    key = GINT_TO_POINTER((position << 16) | id);
+    key = GDIGI_KEY(position, id);
 
     list = g_tree_lookup(widget_tree, key);
 
@@ -390,7 +390,7 @@ void apply_setting_param_to_gui(SettingParam *param)
     g_return_if_fail(param != NULL);
 
     allow_send = FALSE;
-    key = GINT_TO_POINTER((param->position << 16) | param->id);
+    key = GDIGI_KEY(param->position, param->id);
     GList *list = g_tree_lookup(widget_tree, key);
     g_list_foreach(list, (GFunc)apply_widget_setting, param);
     allow_send = TRUE;
@@ -416,7 +416,7 @@ static void apply_preset_to_gui(Preset *preset)
         iter = iter->next;
 
         if (param != NULL) {
-            key = GINT_TO_POINTER((param->position << 16) | param->id);
+            key = GDIGI_KEY(param->position, param->id);
             GList *list = g_tree_lookup(widget_tree, key);
             g_list_foreach(list, (GFunc)apply_widget_setting, param);
         }
@@ -461,7 +461,7 @@ void modifier_settings_exp_free(EffectSettings *settings)
 
         id = settings[i].id;
         pos = settings[i].position;
-        key = GINT_TO_POINTER(pos <<16| id);
+        key = GDIGI_KEY(pos, id);
         orig_list = g_tree_lookup(widget_tree, key);
         if (!orig_list) {
             continue;
@@ -849,7 +849,7 @@ create_modifier_group (guint pos, guint id)
     debug_msg(DEBUG_GROUP, "Building modifier group for position %d id %d \"%s\"",
                            pos, id, get_xml_settings(id, pos)->label);
 
-    key = GINT_TO_POINTER((pos << 16) | id);
+    key = GDIGI_KEY(pos, id);
     list = g_tree_lookup(widget_tree, key);
 
     /* 
