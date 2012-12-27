@@ -73,20 +73,49 @@ __END__
 
 =head1 NAME
 
-Gdigi - Perl extension for blah blah blah
+Gdigi - Perl extension for managing a Digitech guitar effects processor.
 
 =head1 SYNOPSIS
 
-  use Gdigi;
-  blah blah blah
+use Gdigi qw(
+    gdigi_init
+    gdigi_fini
+    gdigi_get_parameter
+    gdigi_set_parameter
+    gdigi_set_debug
+    gdigi_clear_debug
+);
+
 
 =head1 DESCRIPTION
 
-Stub documentation for Gdigi, created by h2xs. It looks like the
-author of the extension was negligent enough to leave the stub
-unedited.
+First call gdigi_init() to initialize the module.
 
-Blah blah blah.
+To retrieve a parameter from the device:
+
+gdigi_get_paramter(id, position, value);
+
+Returns -1 on failure, 0 on success.
+'value' is used as an out parameter. I.e., if the function returns success,
+the retrieved value will be in 'value'.
+
+This API will block for no more than one second waiting for the device to
+respond.
+
+To set a parameter to a value:
+
+gdigi_set_paramter(id, position, value);
+
+Returns -1 on failure, 0 on succcess.
+
+Call gdigi_fini() to cleanup module state.
+
+There is a sample program gdigi.pl included with the gdigi source.
+
+Calling gdigi_set_debug() will cause the module to print debugging information
+to stderr.
+
+Calling gdigi_clear_debug() will turn off debugging.
 
 =head2 EXPORT
 
@@ -107,25 +136,17 @@ None by default.
   gint gdigi_set_parameter(guint id, guint position, guint value)
 
 
-
 =head1 SEE ALSO
 
-Mention other useful documentation such as the documentation of
-related modules or operating system documentation (such as man pages
-in UNIX), or any relevant external documentation such as RFCs or
-standards.
-
-If you have a mailing list set up for your module, mention it here.
-
-If you have a web site set up for your module, mention it here.
+There is a sample program gdigi.pl distributed with the gdigi source.
 
 =head1 AUTHOR
 
-Tim LaBerge --- Work, E<lt>tlaberge@E<gt>
+Tim LaBerge, E<lt>tlaberge@visi.comE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2012 by Tim LaBerge --- Work
+Copyright (C) 2012 by Tim LaBerge
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself, either Perl version 5.14.2 or,
