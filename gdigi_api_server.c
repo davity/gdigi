@@ -304,6 +304,10 @@ void gdigi_api_server_get_parameter_response(guint id, guint pos, guint value)
     GList *client_list;
     gpointer key = GDIGI_KEY(pos, id);
 
+    if (api_sock < 0) {
+        return;
+    }
+
     debug_msg(DEBUG_API, "Looking for response for id %d pos %d\n", id, pos);
 
     client_list = g_tree_lookup(request_parameter_tree, key);
@@ -313,4 +317,13 @@ void gdigi_api_server_get_parameter_response(guint id, guint pos, guint value)
     g_list_foreach(client_list, (GFunc)get_parameter_response, &value);
 
     g_tree_remove(request_parameter_tree, key);
+}
+
+void gdigi_api_server_fini(void)
+{
+    if (api_sock >= 0) {
+        close(api_sock);
+        api_sock = -1;
+        unlink(GDIGI_SOCKET_PATH);
+    }
 }

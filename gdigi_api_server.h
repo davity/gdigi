@@ -20,6 +20,7 @@
 #define GDIGI_API_SERVER_H
 
 void gdigi_api_server_init(void);
+void gdigi_api_server_fini(void);
 void gdigi_api_server_select(void);
 void gdigi_api_server_get_parameter_response(guint id, guint pos, guint value);
 

@@ -1569,6 +1569,7 @@ int main(int argc, char *argv[]) {
 
                 /* disable GUI mode */
                 set_option(GUI_MODE_ON_OFF, GLOBAL_POSITION, 0);
+                gdigi_api_server_fini();
             }
         }
     }
