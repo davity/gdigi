@@ -7,17 +7,32 @@ LDADD := $(shell pkg-config --libs glib-2.0 gio-2.0 gtk+-3.0 gthread-2.0 alsa li
 OBJECTS = gdigi.o gui.o effects.o preset.o gtkknob.o preset_xml.o gdigi_api_server.o
 DEPFILES = $(foreach m,$(OBJECTS:.o=),.$(m).m)
 
+LIB_OBJECTS = gdigi_api.o
+LIBDEPFILES = $(foreach m,$(LIB_OBJECTS:.o=),.$(m).m)
+LIBS = -L/usr/local/lib -lm
+
+CLIENT_OBJECTS = gdigi_client.o
+CLIENT_LIBS = libgdigi
+
+
 .PHONY : clean distclean all
+
 %.o : %.c
 	$(CC) $(CFLAGS) -c $<
 
 .%.m : %.c
 	$(CC) $(CFLAGS) -M -MF $@ -MG $<
 
-all: gdigi
+all: gdigi libgdigi.a gdigi_client
 
 gdigi: $(OBJECTS) 
 	$(CC) $(LDFLAGS) -o $@ $+ $(LDADD)
+
+gdigi_client: $(CLIENT_OBJECTS) libgdigi.a
+	$(CC) $(LDFLAGS) -o $@ $+ libgdigi.a
+
+libgdigi.a: $(LIB_OBJECTS)
+	ar rcs libgdigi.a $(LIB_OBJECTS)
 
 images/gdigi_icon.h: images/icon.png
 	gdk-pixbuf-csource --raw --name=gdigi_icon $< > $@

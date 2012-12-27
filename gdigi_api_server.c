@@ -24,8 +24,6 @@
 #include "gdigi_api.h"
 #include "gdigi_api_server.h"
 
-#define GDIGI_SOCKET_PATH "/var/tmp/gdigi_sock"
-
 static int api_sock = -1;
 static fd_set read_socks;
 
@@ -88,8 +86,8 @@ static void request_parameter_free_client_list (GList *client_list)
  * \param client_address_len Length of the client address.
  */
 static void get_parameter_request(guint id, guint pos,
-                                      struct sockaddr_un *client_address,
-                                      gint client_address_len)
+                                  struct sockaddr_un *client_address,
+                                  gint client_address_len)
 {
     gpointer *key;
     GList *client_list;
@@ -206,7 +204,7 @@ void gdigi_api_server_select(void)
 {
     int rc, n;
     socklen_t len;
-    guint command[4];
+    gdigi_api_request_t req;
     struct sockaddr_un cliaddr;
     struct timeval none = {0};
 
@@ -222,16 +220,16 @@ void gdigi_api_server_select(void)
 
     debug_msg(DEBUG_API, "Read socket.\n");
 
-    memset(command, '\0', sizeof(guint) *4);
+    memset(&req, '\0', sizeof(req));
     memset(&cliaddr, '\0', sizeof(cliaddr));
     len = sizeof(struct sockaddr_un);
-    n = recvfrom(api_sock, command, 4*sizeof(guint), 0,
+    n = recvfrom(api_sock, &req, sizeof(req), 0,
                  (struct sockaddr *)&cliaddr, &len);
 
 #define HEX_WIDTH 26
     if (debug_flag_is_set(DEBUG_API)) {
         printf("%d bytes from client %s:\n", n, cliaddr.sun_path);
-        unsigned char *msg = (unsigned char *)command;
+        unsigned char *msg = (unsigned char *)&req;
         int x;
         for (x = 0; x < n; x++) {
             if (x && (x % HEX_WIDTH) == 0) {
@@ -244,17 +242,22 @@ void gdigi_api_server_select(void)
         }
     }
 
-    switch (command[0]) {
+    req.op = g_ntohl(req.op);
+    req.id = g_ntohl(req.id);
+    req.position = g_ntohl(req.position);
+    req.value = g_ntohl(req.value);
+
+    switch (req.op) {
     case GDIGI_API_GET_PARAMETER:
-        get_parameter_request(command[1], command[2], &cliaddr, len);
+        get_parameter_request(req.id, req.position, &cliaddr, len);
         break;
 
     case GDIGI_API_SET_PARAMETER:
-        set_parameter_request(command[1], command[2], command[3]);
+        set_parameter_request(req.id, req.position, req.value);
         break;
 
     default:
-        g_warning("Unknown client operation 0x%x.\n", command[0]);
+        g_warning("Unknown client operation 0x%x.\n", req.op);
         break;
     }
 }
@@ -268,11 +271,17 @@ void gdigi_api_server_select(void)
 static void get_parameter_response(request_parameter_t *req, guint *value)
 {
     gint32 rc;
+    gdigi_api_response_t rsp;
+
+    memset(&rsp, '\0', sizeof(gdigi_api_response_t));
+    rsp.id = g_htonl(req->id);
+    rsp.position = g_htonl(req->position);
+    rsp.value = g_htonl(*value);
 
     debug_msg(DEBUG_API, "Reply to client %s with value %d\n",
                          req->client_address.sun_path, *value);
 
-    rc = sendto(api_sock, value, sizeof(guint), 0,
+    rc = sendto(api_sock, &rsp, sizeof(gdigi_api_response_t), 0,
                 (struct sockaddr *)&req->client_address,
                 req->client_address_len);
     if (rc < 0) {
@@ -299,7 +308,6 @@ void gdigi_api_server_get_parameter_response(guint id, guint pos, guint value)
 
     client_list = g_tree_lookup(request_parameter_tree, key);
     if (!client_list) {
-        debug_msg(DEBUG_API, "No client\n", id, pos);
         return;
     }
     g_list_foreach(client_list, (GFunc)get_parameter_response, &value);

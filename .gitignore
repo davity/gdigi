@@ -3,6 +3,8 @@
 cscope.*
 tags
 gdigi
+libgdigi.a
+gdigi_client
 *.orig
 *.swp
 images/gdigi_icon.h

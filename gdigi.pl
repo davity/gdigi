@@ -1,9 +1,18 @@
 #!/usr/bin/perl
 
+# Pick up the module and associated .so from the build directory.
+use lib qw(Gdigi/blib/lib/ Gdigi/blib/arch/auto/Gdigi/);
+use Gdigi qw(
+        gdigi_init
+        gdigi_fini
+        gdigi_get_parameter
+        gdigi_set_parameter
+        gdigi_set_debug
+        gdigi_clear_debug
+);
+
 use Socket;
 use File::Temp qw(tempfile);
-use Gdigi;
-
 $Usage = "Usage: gdigi.pl [get|set] <id> <pos> <val>
 'val' is required for 'set', but ignored for 'get'.\n";
 
@@ -44,14 +53,16 @@ gdigi_init();
 
 if ($op eq "get") {
 
+    my $value;
+
     print "Getting parameter position $pos id $id\n";
 
-    my $value = gdigi_get_parameter($id, $pos);
-    if ($value) {
-        print STDOUT "id $id pos $pos --> value $value\n";
-    } else {
-        print STDOUT "No value returned\n";
+    # gdigi_get_parameter() treats $value as an out param.
+    if (gdigi_get_parameter($id, $pos, $value) < 0) {
+        die("Failed to get parameter: $!\n");
     }
+
+    print STDOUT "id $id pos $pos --> value $value\n";
 
 } elsif ($op eq "set") {
 
