@@ -20,9 +20,11 @@
 #include <fcntl.h>
 #include <sys/un.h>
 #include <string.h>
+#include <gdk/gdk.h>
 #include "gdigi.h"
 #include "gdigi_api.h"
 #include "gdigi_api_server.h"
+#include "gui.h"
 
 static int api_sock = -1;
 static fd_set read_socks;
@@ -188,13 +190,21 @@ sock_err:
  */
 static void set_parameter_request(guint id, guint pos, guint value)
 {
+    SettingParam param;
     debug_msg(DEBUG_API, "set_option for id %d pos %d value %d\n",
                           id, pos, value);
 
     set_option(id, pos, value);
 
     /* Refresh the gui. */
-    get_option(id, pos);
+    param.id = id;
+    param.position = pos;
+    param.value = value;
+
+     GDK_THREADS_ENTER();
+     apply_setting_param_to_gui(&param);
+     GDK_THREADS_LEAVE();
+
 }
 
 /**

@@ -32,5 +32,6 @@ gint select_device_dialog (GList *devices);
 const gchar* get_message_name(MessageID msgid);
 void create_modifier_group (guint pos, guint id);
 void modifier_settings_exp_free(EffectSettings *settings);
+void print_effect_tree(Device* device);
 
 #endif /* GDIGI_GUI_H */

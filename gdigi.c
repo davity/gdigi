@@ -115,6 +115,9 @@ format_value (XmlSettings *xml, guint value)
     gint            offset = 0;
     gboolean        decimal = FALSE;
 
+    if (!xml->values) {
+        return NULL;
+    }
     values = xml->values;
     vtype = values->type;
     while ((vtype & VALUE_TYPE_EXTRA) && value_is_extra(values, value)) {
@@ -1438,6 +1441,8 @@ static void request_device_configuration()
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 
+static gboolean print_tree = FALSE;
+
 static GOptionEntry options[] = {
     {"device", 'd', G_OPTION_FLAG_IN_MAIN, G_OPTION_ARG_STRING, &device_port, "MIDI device port to use", NULL},
     {"debug-flags <flags>", 'D', G_OPTION_FLAG_IN_MAIN, G_OPTION_ARG_CALLBACK, set_debug_flags,
@@ -1459,6 +1464,7 @@ static GOptionEntry options[] = {
         "                                "
         "v: Additional verbosity.\n" ,
         NULL},
+    {"print-tree", 'p', G_OPTION_FLAG_IN_MAIN, G_OPTION_ARG_NONE, &print_tree, "Print effect tree to stdout and exit.", NULL},
     {NULL}
 };
 
@@ -1560,6 +1566,10 @@ int main(int argc, char *argv[]) {
             }
 
             if (device != NULL) {
+                if (print_tree) {
+                    print_effect_tree(device);
+                    goto done;
+                }
                 /* enable GUI mode */
                 set_option(GUI_MODE_ON_OFF, GLOBAL_POSITION, 1);
 
@@ -1573,6 +1583,8 @@ int main(int argc, char *argv[]) {
             }
         }
     }
+
+done:
 
     if (read_thread != NULL) {
         stop_read_thread = TRUE;

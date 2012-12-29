@@ -310,9 +310,11 @@ static EffectValues values_0_to_255 = {
     .min = 0.0, .max = 255.0, .type = VALUE_TYPE_PLAIN,
 };
 
+#if defined(DEVELOPMENT_MODE)
 static EffectValues values_0_to_29 = {
     .min = 0.0, .max = 29.0, .type = VALUE_TYPE_PLAIN,
 };
+#endif
 
 static EffectValues values_1_to_4 = {
     .min = 0.0, .max = 3.0,
@@ -608,7 +610,7 @@ static EffectValues values_dist_type = {
 };
 
 static EffectValues values_amp_type = {
-    .min = 307.0, .max = 351.0,
+    .min = 306.0, .max = 351.0,
     .type = VALUE_TYPE_LABEL,
 };
 
@@ -706,7 +708,7 @@ static EffectValues values_tone_lib_type= {
 };
 
 static EffectValues values_fx_lib_type= {
-    .min = 1856.0, .max = 1866.0,
+    .min = 1856.0, .max = 1886.0,
     .type = VALUE_TYPE_LABEL,
 };
 
@@ -726,8 +728,8 @@ static EffectSettings global_settings[] = {
     {"USB Level", USB_AUDIO_LEVEL, GLOBAL_POSITION, &values_m12_to_24},
 #if defined(DEVELOPMENT_MODE)
     {"GUI Mode", GUI_MODE_ON_OFF, GLOBAL_POSITION, &values_on_off},
-#endif /* DEVELOPMENT_MODE */
     {"Tuning Reference", TUNING_REFERENCE, GLOBAL_POSITION, &values_0_to_29},
+#endif /* DEVELOPMENT_MODE */
     {"Pedal Position", EXP_PEDAL_LEVEL, GLOBAL_POSITION, &values_0_to_255},
     {"Stomp", STOMP_MODE, GLOBAL_POSITION, &values_on_off},
     {"Wah Pedal Position", WAH_PEDAL_POSITION, WAH_POSITION, &values_0_to_99},
@@ -2993,6 +2995,12 @@ static Effect global_effect[] = {
     {NULL, -1, 0, GLOBAL_POSITION, global_group, G_N_ELEMENTS(global_group)},
 };
 
+static Effect preset_effect[] = {
+    {NULL, -1, PRESET_LEVEL, PRESET_POSITION,  misc_group, G_N_ELEMENTS(misc_group)},
+    {NULL, -1, PRESET_LEVEL, PRESET_POSITION,  pre_fx_group, G_N_ELEMENTS(pre_fx_group)},
+    {NULL, -1, PRESET_LEVEL, PRESET_POSITION,  post_fx_group, G_N_ELEMENTS(post_fx_group)},
+};
+
 static Effect pickup_misc_effect[] = {
     {NULL, PICKUP_ON_OFF, PICKUP_TYPE, PICKUP_POSITION, pickup_group, G_N_ELEMENTS(pickup_group)},
     {NULL, -1, PRESET_LEVEL, PRESET_POSITION,  misc_group, G_N_ELEMENTS(misc_group)},
@@ -3076,7 +3084,9 @@ static EffectList rp255_effects[] = {
 };
 
 static EffectList rp355_effects[] = {
-    {"Pickup/Misc", pickup_misc_effect, G_N_ELEMENTS(pickup_misc_effect)},
+    {"Global", global_effect, G_N_ELEMENTS(global_effect)},
+    {"Preset", preset_effect, G_N_ELEMENTS(preset_effect)},
+    {"Pickup", pickup_effect, G_N_ELEMENTS(pickup_effect)},
     {"Wah", wah_effect, G_N_ELEMENTS(wah_effect)},
     {"Compressor", rp355_comp_effect, G_N_ELEMENTS(rp355_comp_effect)},
     {"Distortion", rp355_dist_effect, G_N_ELEMENTS(rp355_dist_effect)},
@@ -3092,7 +3102,6 @@ static EffectList rp355_effects[] = {
     {"Pedal1 Assign", rp355_pedal1_assign_effect, G_N_ELEMENTS(rp355_pedal1_assign_effect)},
     {"LFO1", rp355_lfo1_effect, G_N_ELEMENTS(rp355_lfo1_effect)},
     {"LFO2", rp355_lfo2_effect, G_N_ELEMENTS(rp355_lfo2_effect)},
-    {"Global Settings", global_effect, G_N_ELEMENTS(global_effect)},
     {"Tone Library", tone_lib_effect_a, G_N_ELEMENTS(tone_lib_effect_a)},
 };
 
@@ -3322,8 +3331,10 @@ typedef struct {
 
 static Modifier modifiers[] = {
     {"None", 0, 0, NULL},
+
     {"Pickup Enable", PICKUP_ON_OFF, PICKUP_POSITION, &values_on_off},
     {"Pickup Type", PICKUP_TYPE, PICKUP_POSITION, &values_pickup_type},
+
     {"Compressor Enable", COMP_ON_OFF, COMP_POSITION, &values_on_off},
     {"Compressor Sustain", COMP_SUSTAIN, COMP_POSITION, &values_0_to_99},
     {"Compressor Tone", COMP_TONE, COMP_POSITION, &values_0_to_99},
@@ -3331,6 +3342,7 @@ static Modifier modifiers[] = {
     {"Compressor Attack", COMP_ATTACK, COMP_POSITION, &values_0_to_99},
     {"Compressor Sensitivity", COMP_SENSITIVITY, COMP_POSITION, &values_0_to_99},
     {"Compressor Output", COMP_OUTPUT, COMP_POSITION, &values_0_to_99},
+
     {"Dist Enable", DIST_ON_OFF, DIST_POSITION, &values_on_off},
     {"Dist Drive", DIST_SCREAMER_DRIVE, DIST_POSITION, &values_0_to_99},
     {"Dist Tone", DIST_SCREAMER_TONE, DIST_POSITION, &values_0_to_99},
@@ -3373,28 +3385,50 @@ static Modifier modifiers[] = {
     {"Dist Sustain", DIST_MP_SUSTAIN, DIST_POSITION, &values_0_to_99},
     {"Dist Tone", DIST_MP_TONE, DIST_POSITION, &values_0_to_99},
     {"Dist Volume", DIST_MP_VOLUME, DIST_POSITION, &values_0_to_99},
+    {"Dist Gain", DIST_SPARKDRIVE_GAIN, DIST_POSITION, &values_0_to_99},
+    {"Dist Tone", DIST_SPARKDRIVE_TONE, DIST_POSITION, &values_0_to_99},
+    {"Dist Clean", DIST_SPARKDRIVE_CLEAN, DIST_POSITION, &values_0_to_99},
+    {"Dist Volume", DIST_SPARKDRIVE_VOLUME, DIST_POSITION, &values_0_to_99},
+    {"Dist Gain", DIST_REDLINE_GAIN, DIST_POSITION, &values_0_to_99},
+    {"Dist Low", DIST_REDLINE_LOW, DIST_POSITION, &values_0_to_99},
+    {"Dist High", DIST_REDLINE_HIGH, DIST_POSITION, &values_0_to_99},
+    {"Dist Level", DIST_REDLINE_LEVEL, DIST_POSITION, &values_0_to_99},
+    {"Dist Drive", DIST_8TAVIA_DRIVE, DIST_POSITION, &values_0_to_99},
+    {"Dist Volume", DIST_8TAVIA_VOLUME, DIST_POSITION, &values_0_to_99},
+    {"Dist Fuzz", DIST_FUZZLATOR_FUZZ, DIST_POSITION, &values_0_to_99},
+    {"Dist Tone", DIST_FUZZLATOR_TONE, DIST_POSITION, &values_0_to_99},
+    {"Dist Loose/Tight", DIST_FUZZLATOR_LOOSETIGHT, DIST_POSITION, &values_loose_tight},
+    {"Dist Volume", DIST_FUZZLATOR_VOLUME, DIST_POSITION, &values_0_to_99},
+    {"Dist Fuzz", DIST_CLASSIC_FUZZ_FUZZ, DIST_POSITION, &values_0_to_99},
+    {"Dist Tone", DIST_CLASSIC_FUZZ_TONE, DIST_POSITION, &values_0_to_99},
+    {"Dist Volume", DIST_CLASSIC_FUZZ_VOLUME, DIST_POSITION, &values_0_to_99},
+
     {"Amp Enable", AMP_ON_OFF, AMP_A_POSITION, &values_on_off},
     {"Amp Gain", AMP_GAIN, AMP_A_POSITION, &values_0_to_99},
     {"Amp Level", AMP_LEVEL, AMP_A_POSITION, &values_0_to_99},
     {"Amp B Enable", AMP_ON_OFF, AMP_B_POSITION, &values_on_off},
     {"Amp B Gain", AMP_GAIN, AMP_B_POSITION, &values_0_to_99},
     {"Amp B Level", AMP_LEVEL, AMP_B_POSITION, &values_0_to_99},
+
     {"EQ Enable", EQ_ENABLE, EQ_A_POSITION, &values_on_off},
     {"EQ Bass", EQ_BASS, EQ_A_POSITION, &values_eq_db},
     {"EQ Mid", EQ_MID, EQ_A_POSITION, &values_eq_db},
     {"EQ Treb", EQ_TREB, EQ_A_POSITION, &values_eq_db},
     {"EQ Presence", EQ_PRESENCE, EQ_A_POSITION, &values_eq_db},
+
     {"EQ B Enable", EQ_ENABLE, EQ_B_POSITION, &values_on_off},
     {"EQ B Bass", EQ_BASS, EQ_B_POSITION, &values_eq_db},
     {"EQ B Mid", EQ_MID, EQ_B_POSITION, &values_eq_db},
     {"EQ B Treb", EQ_TREB, EQ_B_POSITION, &values_eq_db},
     {"EQ B Presence", EQ_PRESENCE, EQ_B_POSITION, &values_eq_db},
+
     {"Gate Enable", NOISEGATE_ON_OFF, NOISEGATE_POSITION, &values_on_off},
     {"Gate Pluck Sens", NOISEGATE_SWELL_SENS, NOISEGATE_POSITION, &values_0_to_99},
     {"Gate Threshold", NOISEGATE_GATE_TRESHOLD, NOISEGATE_POSITION, &values_0_to_99},
     {"Gate Attack", NOISEGATE_ATTACK, NOISEGATE_POSITION, &values_0_to_99},
     {"Gate Release", NOISEGATE_RELEASE, NOISEGATE_POSITION, &values_0_to_99},
     {"Gate Attenuation", NOISEGATE_ATTN, NOISEGATE_POSITION, &values_0_to_99},
+
     {"Chorus/FX Enable", CHORUSFX_ON_OFF, CHORUSFX_POSITION, &values_on_off},
     {"Phaser Speed", PHASER_SPEED, CHORUSFX_POSITION, &values_0_to_99},
     {"Phaser Depth", PHASER_DEPTH, CHORUSFX_POSITION, &values_0_to_99},
@@ -3483,16 +3517,24 @@ static Modifier modifiers[] = {
     {"Delay Time", DELAY_TIME, DELAY_POSITION, &values_delay_time},
     {"Delay Repeats", DELAY_REPEATS, DELAY_POSITION, &values_delay_repeats},
     {"Delay Level", DELAY_LEVEL, DELAY_POSITION, &values_0_to_99},
+    {"Delay Repeat Rate", DELAY_REPEAT_RATE_DM, DELAY_POSITION, &values_0_to_99},
+    {"Delay Echo", DELAY_ECHO, DELAY_POSITION, &values_0_to_99},
+    {"Delay Intensity", DELAY_INTENSITY, DELAY_POSITION, &values_0_to_99},
+    {"Delay Echoplex Time", DELAY_ECHOPLEX_TIME, DELAY_POSITION, &values_0_to_99},
     {"Delay Duck Thresh", DELAY_DUCK_THRESH, DELAY_POSITION, &values_0_to_99},
     {"Delay Duck Level", DELAY_DUCK_LEVEL, DELAY_POSITION, &values_0_to_99},
     {"Delay Mod Depth", DELAY_DEPTH, DELAY_POSITION, &values_0_to_99},
     {"Delay Tape Wow", DELAY_TAPE_WOW, DELAY_POSITION, &values_0_to_99},
     {"Delay Tape Flut", DELAY_TAPE_FLUTTER, DELAY_POSITION, &values_0_to_99},
+    {"Delay Repeats", DELAY_REPEATS_0_99, DELAY_POSITION, &values_0_to_99},
+    {"Delay Volume", DELAY_VOLUME, DELAY_POSITION, &values_0_to_99},
+
     {"Reverb Enable", REVERB_ON_OFF, REVERB_POSITION, &values_on_off},
     {"Reverb Decay", REVERB_DECAY, REVERB_POSITION, &values_0_to_99},
     {"Reverb Liveliness", REVERB_LIVELINESS, REVERB_POSITION, &values_0_to_99},
     {"Reverb Level", REVERB_LEVEL, REVERB_POSITION, &values_0_to_99},
     {"Reverb Predelay", REVERB_PREDELAY, REVERB_POSITION, &values_0_to_15},
+
     {"Volume Pre FX", PRESET_LEVEL, VOLUME_PRE_FX_POSITION, &values_0_to_99},
     {"Volume Post FX", PRESET_LEVEL, VOLUME_POST_FX_POSITION, &values_0_to_99},
 };
@@ -3881,6 +3923,11 @@ static XmlLabel xml_eq_labels[] = {
     {EQ_TYPE_WARM, "Warm"},
 };
 
+static XmlLabel xml_loosetight_labels[] = {
+    { 0, "Loose"},
+    {1, "Tight"},
+};
+
 static XmlLabel xml_tone_lib_labels[] = {
     {TONE_LIB_OVERDRIVE, "Overdrive"},
     {TONE_LIB_ROCK1, "Rock 1"},
@@ -4011,6 +4058,23 @@ XmlSettings xml_settings[] = {
     {DIST_MP_SUSTAIN, DIST_POSITION, "Dist Sustain", &values_0_to_99,},
     {DIST_MP_TONE, DIST_POSITION, "Dist Tone", &values_0_to_99,},
     {DIST_MP_VOLUME, DIST_POSITION, "Dist Volume", &values_0_to_99,},
+    {DIST_SPARKDRIVE_GAIN, DIST_POSITION, "Dist Volume", &values_0_to_99,},
+    {DIST_SPARKDRIVE_TONE, DIST_POSITION, "Dist Volume", &values_0_to_99,},
+    {DIST_SPARKDRIVE_CLEAN, DIST_POSITION, "Dist Volume", &values_0_to_99,},
+    {DIST_SPARKDRIVE_VOLUME, DIST_POSITION, "Dist Volume", &values_0_to_99,},
+    {DIST_REDLINE_GAIN, DIST_POSITION, "Dist Gain", &values_0_to_99,},
+    {DIST_REDLINE_LOW, DIST_POSITION, "Dist Low", &values_0_to_99,},
+    {DIST_REDLINE_HIGH, DIST_POSITION, "Dist High", &values_0_to_99,},
+    {DIST_REDLINE_LEVEL, DIST_POSITION, "Dist Level", &values_0_to_99,},
+    {DIST_8TAVIA_DRIVE, DIST_POSITION, "Dist Drive", &values_0_to_99,},
+    {DIST_8TAVIA_VOLUME, DIST_POSITION, "Dist Volume", &values_0_to_99,},
+    {DIST_FUZZLATOR_FUZZ, DIST_POSITION, "Dist Fuzz", &values_0_to_99,},
+    {DIST_FUZZLATOR_TONE, DIST_POSITION, "Dist Tone", &values_0_to_99,},
+    {DIST_FUZZLATOR_LOOSETIGHT, DIST_POSITION, "Loose/Tight", &values_loose_tight, xml_loosetight_labels, G_N_ELEMENTS(xml_loosetight_labels)},
+    {DIST_FUZZLATOR_VOLUME, DIST_POSITION, "Dist Volume", &values_0_to_99,},
+    {DIST_CLASSIC_FUZZ_FUZZ, DIST_POSITION, "Dist Fuzz", &values_0_to_99,},
+    {DIST_CLASSIC_FUZZ_TONE, DIST_POSITION, "Dist Tone", &values_0_to_99,},
+    {DIST_CLASSIC_FUZZ_VOLUME, DIST_POSITION, "Dist Volume", &values_0_to_99,},
 
     {AMP_CHANNEL, AMP_CHANNEL_POSITION, "Amp Channel", &values_a_b, xml_amp_channel_labels, G_N_ELEMENTS(xml_amp_channel_labels)},
 
@@ -4161,6 +4225,12 @@ XmlSettings xml_settings[] = {
     {DELAY_DEPTH, DELAY_POSITION, "Delay Mod Depth", &values_0_to_99,},
     {DELAY_TAPE_WOW, DELAY_POSITION, "Delay Tape Wow", &values_0_to_99,},
     {DELAY_TAPE_FLUTTER, DELAY_POSITION, "Delay Tape Flut", &values_0_to_99,},
+    {DELAY_REPEATS_0_99, DELAY_POSITION, "Delay Repeats", &values_0_to_99,},
+    {DELAY_VOLUME, DELAY_POSITION, "Delay Volume", &values_0_to_99,},
+    {DELAY_ECHO, DELAY_POSITION, "Delay Echo", &values_0_to_99,},
+    {DELAY_INTENSITY, DELAY_POSITION, "Delay Intensity", &values_0_to_99,},
+    {DELAY_REPEAT_RATE_DM, DELAY_POSITION, "Delay Repeat Rate", &values_0_to_99,},
+    {DELAY_ECHOPLEX_TIME, DELAY_POSITION, "Delay Echoplex Time", &values_0_to_99,},
 
     {REVERB_TYPE, REVERB_POSITION, "Reverb Type", &values_reverb_type, xml_reverb_labels, G_N_ELEMENTS(xml_reverb_labels)},
     {REVERB_ON_OFF, REVERB_POSITION, "Reverb Enable", &values_on_off, xml_on_off_labels, G_N_ELEMENTS(xml_on_off_labels)},
@@ -4238,10 +4308,13 @@ XmlSettings xml_settings[] = {
     {FX_LIB_LEVEL_MAX3, LIB_POSITION_B, "FxLib B LvlMax3", &values_0_to_99,},
 
     // Global settings, not part of presets or standard XML.
+#if defined(DEVELOPMENT_MODE)
+    {GUI_MODE_ON_OFF, GLOBAL_POSITION, "GUI Mode", &values_0_to_99,},
     {TUNING_REFERENCE, GLOBAL_POSITION, "Tuning Reference", &values_0_to_99,},
+#endif /* DEVELOPMENT_MODE */
+
     {USB_AUDIO_PLAYBACK_MIX, GLOBAL_POSITION, "USB Audio Playback Mix", &values_0_to_99,},
     {USB_AUDIO_LEVEL, GLOBAL_POSITION, "USB Audio Level", &values_0_to_99,},
-    {GUI_MODE_ON_OFF, GLOBAL_POSITION, "GUI Mode", &values_0_to_99,},
     {EXP_PEDAL_LEVEL, GLOBAL_POSITION, "EXP Pedal Level", &values_0_to_99,},
     {STOMP_MODE, GLOBAL_POSITION, "Stomp Mode", &values_0_to_99,},
 };

@@ -99,13 +99,14 @@ gint gdigi_init(void)
  */
 static gint gdigi_send(gdigi_api_request_t *req)
 {
+    gdigi_debug("Sending op %d id %d pos %d val %d\n",
+                 req->op, req->id, req->position, req->value);
+
     req->op = g_htonl(req->op);
     req->id = g_htonl(req->id);
     req->position = g_htonl(req->position);
     req->value = g_htonl(req->value);
 
-    gdigi_debug("Sending op %d id %d pos %d val %d\n",
-                 req->op, req->id, req->position, req->value);
 
     return sendto(gdigi_api_socket, req, sizeof(gdigi_api_request_t), 0,
                   (struct sockaddr *) &gdigi_server_addr, 
@@ -122,7 +123,7 @@ static gint gdigi_receive(gdigi_api_response_t *rsp)
     int n;
     socklen_t len;
     int rc;
-    struct timeval ts = {1, 0};
+    struct timeval ts = {5, 0};
 
     FD_SET(gdigi_api_socket, &rfds);
 
