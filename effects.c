@@ -610,7 +610,7 @@ static EffectValues values_dist_type = {
 };
 
 static EffectValues values_amp_type = {
-    .min = 306.0, .max = 351.0,
+    .min = 306.0, .max = 383.0,
     .type = VALUE_TYPE_LABEL,
 };
 
@@ -735,15 +735,9 @@ static EffectSettings global_settings[] = {
     {"Wah Pedal Position", WAH_PEDAL_POSITION, WAH_POSITION, &values_0_to_99},
 };
 
-static EffectSettings misc_settings[] = {
+static EffectSettings preset_settings[] = {
     {"Preset Level", PRESET_LEVEL, PRESET_POSITION, &values_0_to_99},
-};
-
-static EffectSettings pre_fx_settings[] = {
     {"Volume Pre FX", PRESET_LEVEL, VOLUME_PRE_FX_POSITION, &values_0_to_99},
-};
-
-static EffectSettings post_fx_settings[] = {
     {"Volume Post FX", PRESET_LEVEL, VOLUME_POST_FX_POSITION, &values_0_to_99},
 };
 
@@ -1646,16 +1640,8 @@ static EffectGroup global_group[] = {
     {-1, NULL, global_settings, G_N_ELEMENTS(global_settings)},
 };
 
-static EffectGroup misc_group[] = {
-    {-1, NULL, misc_settings, G_N_ELEMENTS(misc_settings)},
-};
-
-static EffectGroup pre_fx_group[] = {
-    {-1, NULL, pre_fx_settings, G_N_ELEMENTS(pre_fx_settings)},
-};
-
-static EffectGroup post_fx_group[] = {
-    {-1, NULL, post_fx_settings, G_N_ELEMENTS(post_fx_settings)},
+static EffectGroup preset_group[] = {
+    {-1, NULL, preset_settings, G_N_ELEMENTS(preset_settings)},
 };
 
 static EffectGroup gnx3k_preset_group[] = {
@@ -2996,16 +2982,7 @@ static Effect global_effect[] = {
 };
 
 static Effect preset_effect[] = {
-    {NULL, -1, PRESET_LEVEL, PRESET_POSITION,  misc_group, G_N_ELEMENTS(misc_group)},
-    {NULL, -1, PRESET_LEVEL, PRESET_POSITION,  pre_fx_group, G_N_ELEMENTS(pre_fx_group)},
-    {NULL, -1, PRESET_LEVEL, PRESET_POSITION,  post_fx_group, G_N_ELEMENTS(post_fx_group)},
-};
-
-static Effect pickup_misc_effect[] = {
-    {NULL, PICKUP_ON_OFF, PICKUP_TYPE, PICKUP_POSITION, pickup_group, G_N_ELEMENTS(pickup_group)},
-    {NULL, -1, PRESET_LEVEL, PRESET_POSITION,  misc_group, G_N_ELEMENTS(misc_group)},
-    {NULL, -1, PRESET_LEVEL, PRESET_POSITION,  pre_fx_group, G_N_ELEMENTS(pre_fx_group)},
-    {NULL, -1, PRESET_LEVEL, PRESET_POSITION,  post_fx_group, G_N_ELEMENTS(post_fx_group)},
+    {NULL, -1, PRESET_LEVEL, PRESET_POSITION,  preset_group, G_N_ELEMENTS(preset_group)},
 };
 
 static Effect pickup_effect[] = {
@@ -3017,8 +2994,8 @@ static Effect gnx3k_amp_channel_effect[] = {
 };
 
 static Effect tone_lib_effect_a[] = {
-    {NULL, -1, TONE_LIB_TYPE, LIB_POSITION_A, tone_lib_group, G_N_ELEMENTS(tone_lib_group)},
-    {NULL, -1, FX_LIB_TYPE, LIB_POSITION_A, effects_lib_group, G_N_ELEMENTS(effects_lib_group)},
+    {"Tones", -1, TONE_LIB_TYPE, LIB_POSITION_A, tone_lib_group, G_N_ELEMENTS(tone_lib_group)},
+    {"Effects", -1, FX_LIB_TYPE, LIB_POSITION_A, effects_lib_group, G_N_ELEMENTS(effects_lib_group)},
     {NULL, -1, FX_LIB_LEVEL, LIB_POSITION_A, tone_lib_level_a_group, G_N_ELEMENTS(tone_lib_level_a_group)},
 };
 
@@ -3030,7 +3007,8 @@ static Effect tone_lib_effect_b[] = {
 
 /* in signal chain order */
 static EffectList rp150_effects[] = {
-    {"Pickup", pickup_misc_effect, G_N_ELEMENTS(pickup_misc_effect)},
+    {"Preset", preset_effect, G_N_ELEMENTS(preset_effect)},
+    {"Pickup", pickup_effect, G_N_ELEMENTS(pickup_effect)},
     {"Wah", wah_effect, G_N_ELEMENTS(wah_effect)},
     {"Compressor", rp250_comp_effect, G_N_ELEMENTS(rp250_comp_effect)},
     {"Distortion", rp150_dist_effect, G_N_ELEMENTS(rp150_dist_effect)},
@@ -3043,7 +3021,8 @@ static EffectList rp150_effects[] = {
 };
 
 static EffectList rp155_effects[] = {
-    {"Pickup", pickup_misc_effect, G_N_ELEMENTS(pickup_misc_effect)},
+    {"Preset", preset_effect, G_N_ELEMENTS(preset_effect)},
+    {"Pickup", pickup_effect, G_N_ELEMENTS(pickup_effect)},
     {"Wah", wah_effect, G_N_ELEMENTS(wah_effect)},
     {"Compressor", rp250_comp_effect, G_N_ELEMENTS(rp250_comp_effect)},
     {"Distortion", rp155_dist_effect, G_N_ELEMENTS(rp155_dist_effect)},
@@ -3065,7 +3044,8 @@ static EffectList rp250_effects[] = {
     {"Chorus/FX", rp250_chorusfx_effect, G_N_ELEMENTS(rp250_chorusfx_effect)},
     {"Delay", rp250_delay_effect, G_N_ELEMENTS(rp250_delay_effect)},
     {"Reverb", reverb_effect, G_N_ELEMENTS(reverb_effect)},
-    {"Pickup/Misc", pickup_misc_effect, G_N_ELEMENTS(pickup_misc_effect)},
+    {"Preset", preset_effect, G_N_ELEMENTS(preset_effect)},
+    {"Pickup", pickup_effect, G_N_ELEMENTS(pickup_effect)},
 };
 
 /* Almost like rp250, except for Amplifier and Chorus/FX */
@@ -3080,7 +3060,8 @@ static EffectList rp255_effects[] = {
     {"Chorus/FX", rp255_chorusfx_effect, G_N_ELEMENTS(rp255_chorusfx_effect)},
     {"Delay", rp250_delay_effect, G_N_ELEMENTS(rp250_delay_effect)},
     {"Reverb", reverb_effect, G_N_ELEMENTS(reverb_effect)},
-    {"Pickup/Misc", pickup_misc_effect, G_N_ELEMENTS(pickup_misc_effect)},
+    {"Preset", preset_effect, G_N_ELEMENTS(preset_effect)},
+    {"Pickup", pickup_effect, G_N_ELEMENTS(pickup_effect)},
 };
 
 static EffectList rp355_effects[] = {

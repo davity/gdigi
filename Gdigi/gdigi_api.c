@@ -172,7 +172,6 @@ gint gdigi_get_parameter (guint id, guint pos, guint *value)
 
     memset(&rsp, '\0', sizeof(gdigi_api_response_t));
     if (gdigi_receive(&rsp) < 0) {
-        perror("gdigi_receive");
         return -1;
     }
 
