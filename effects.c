@@ -4289,8 +4289,11 @@ XmlSettings xml_settings[] = {
     {FX_LIB_LEVEL_MAX3, LIB_POSITION_B, "FxLib B LvlMax3", &values_0_to_99,},
 
     // Global settings, not part of presets or standard XML.
-#if defined(DEVELOPMENT_MODE)
+
+    // Even though we don't expose this through the gui, we still process
+    // requests for gui mode. So don't comment it out.
     {GUI_MODE_ON_OFF, GLOBAL_POSITION, "GUI Mode", &values_0_to_99,},
+#if defined(DEVELOPMENT_MODE)
     {TUNING_REFERENCE, GLOBAL_POSITION, "Tuning Reference", &values_0_to_99,},
 #endif /* DEVELOPMENT_MODE */
 
