@@ -1,6 +1,0 @@
-Revision history for Perl extension Gdigi.
-
-0.01  Wed Dec 26 20:53:42 2012
-	- original version; created by h2xs 1.23 with options
-		-Oxn Gdigi -F '-I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include' gdigi_api.h
-

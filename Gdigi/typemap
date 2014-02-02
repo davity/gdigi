@@ -1,4 +1,0 @@
-guint *						T_PTROBJ
-gint 	            				T_IV
-guint32						T_UV
-guint						T_UV
