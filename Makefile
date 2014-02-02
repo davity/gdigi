@@ -1,9 +1,9 @@
 CC = gcc
 EXTRA_CFLAGS ?=
 EXTRA_LDFLAGS ?=
-CFLAGS := $(shell pkg-config --cflags glib-2.0 gio-2.0 gtk+-3.0 libxml-2.0) -Wall -g -ansi -std=c99 $(EXTRA_CFLAGS)
+CFLAGS := $(shell pkg-config --cflags dbus-1 glib-2.0 gio-2.0 gtk+-3.0 libxml-2.0) -Wall -g -ansi -std=c99 $(EXTRA_CFLAGS)
 LDFLAGS = $(EXTRA_LDFLAGS) -Wl,--as-needed
-LDADD := $(shell pkg-config --libs glib-2.0 gio-2.0 gtk+-3.0 gthread-2.0 alsa libxml-2.0) -lexpat -lm
+LDADD := $(shell pkg-config --libs dbus-1 glib-2.0 gio-2.0 gtk+-3.0 gthread-2.0 alsa libxml-2.0) -lexpat -lm
 OBJECTS = gdigi.o gui.o effects.o preset.o gtkknob.o preset_xml.o gdigi_api_server.o print_effect_tree.o
 DEPFILES = $(foreach m,$(OBJECTS:.o=),.$(m).m)
 
@@ -11,7 +11,7 @@ LIB_OBJECTS = gdigi_api.o
 LIBDEPFILES = $(foreach m,$(LIB_OBJECTS:.o=),.$(m).m)
 LIBS = -L/usr/local/lib -lm
 
-CLIENT_OBJECTS = gdigi_client.o
+CLIENT_OBJECTS = gdigi_example.o
 CLIENT_LIBS = libgdigi
 
 
@@ -23,13 +23,13 @@ CLIENT_LIBS = libgdigi
 .%.m : %.c
 	$(CC) $(CFLAGS) -M -MF $@ -MG $<
 
-all: gdigi libgdigi.a gdigi_client
+all: gdigi libgdigi.a gdigi_example
 
 gdigi: $(OBJECTS) 
 	$(CC) $(LDFLAGS) -o $@ $+ $(LDADD)
 
-gdigi_client: $(CLIENT_OBJECTS) libgdigi.a
-	$(CC) $(LDFLAGS) -o $@ $+ libgdigi.a
+gdigi_example: $(CLIENT_OBJECTS) libgdigi.a
+	$(CC) $(LDFLAGS) -o $@ $+ libgdigi.a -ldbus-1
 
 libgdigi.a: $(LIB_OBJECTS)
 	ar rcs libgdigi.a $(LIB_OBJECTS)
@@ -44,6 +44,8 @@ distclean : clean
 	rm -f .*.m
 	rm -f images/gdigi_icon.h
 	rm -f gdigi
+	rm -f libgdigi.a 
+	rm -f gdigi_example
 
 install: gdigi
 	install gdigi $(DESTDIR)/usr/bin

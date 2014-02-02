@@ -3,6 +3,7 @@
 cscope.*
 tags
 gdigi
+gdigi_example
 libgdigi.a
 gdigi_client
 *.orig

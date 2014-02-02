@@ -14,14 +14,14 @@
 
 /**
  * These are the functions that gdigi needs to implement the server side of
- * the public socket-based API.
+ * the public Dbus-based API.
  */
 #ifndef GDIGI_API_SERVER_H
 #define GDIGI_API_SERVER_H
 
-void gdigi_api_server_init(void);
-void gdigi_api_server_fini(void);
-void gdigi_api_server_select(void);
-void gdigi_api_server_get_parameter_response(guint id, guint pos, guint value);
+void gdigi_dbus_init(void);
+void gdigi_dbus_fini(void);
+void gdigi_dbus_read(void);
+void gdigi_api_server_get_dbus_parameter_response(guint pos, guint id, guint value);
 
 #endif /* GDIGI_API_SERVER_H */

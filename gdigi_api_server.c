@@ -1,4 +1,6 @@
 /*
+ *  Copyright (c) 2014 Tim LaBerge <tlaberge@visi.com>
+ * 
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; under version 3 of the License.
@@ -12,31 +14,26 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses>.
  */
 
-#include <stdio.h>
-#include <unistd.h>
-#include <sys/select.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <fcntl.h>
-#include <sys/un.h>
-#include <string.h>
-#include <gdk/gdk.h>
+#include <dbus/dbus.h>
 #include "gdigi.h"
 #include "gdigi_api.h"
-#include "gdigi_api_server.h"
 #include "gui.h"
 
-static int api_sock = -1;
-static fd_set read_socks;
-
 typedef struct {
-    guint               id;
     guint               position;
-    struct sockaddr_un  client_address;
-    int                 client_address_len;
-} request_parameter_t;
+    guint               id;
+    DBusMessage        *msg;
+    DBusConnection     *conn;
+} request_dbus_parameter_t;
 
-static GTree *request_parameter_tree;
+/**
+ * GTree that stores pending requests.
+ *
+ * When client get requests are received, they are stored in this tree, keyed by
+ * (Position, ID). When the device returns with the corresponding value,
+ * we do a lookup in the tree and reply to waiting clients.
+ */
+static GTree *request_dbus_parameter_tree;
 
 /**
  * The q-sort'ish comparison function for an id-position tree.
@@ -68,115 +65,15 @@ static gint id_position_tree_compare(gconstpointer a,
  *
  * \param req The request structure to be freed.
  */
-static void request_parameter_free_client(request_parameter_t *req)
+static void request_dbus_parameter_free_client(request_dbus_parameter_t *req)
 {
-    g_slice_free(request_parameter_t, req);
+    g_slice_free(request_dbus_parameter_t, req);
 }
 
-static void request_parameter_free_client_list (GList *client_list)
+static void request_dbus_parameter_free_client_list (GList *client_list)
 {
     g_list_free_full(client_list,
-                     (GDestroyNotify) request_parameter_free_client);
-}
-
-/**
- * Process a request_parameter request.
- *
- * \param id Id of the requested parameter.
- * \param pos Position of the requested parameter.
- * \param client_address Client address (unix socket path) to reply to.
- * \param client_address_len Length of the client address.
- */
-static void get_parameter_request(guint id, guint pos,
-                                  struct sockaddr_un *client_address,
-                                  gint client_address_len)
-{
-    gpointer *key;
-    GList *client_list;
-    request_parameter_t *req = g_slice_new(request_parameter_t);
-
-    req->id = id;
-    req->position = pos;
-    req->client_address = *client_address; /* Struct copy */
-    req->client_address_len = client_address_len;
-
-    key = GDIGI_KEY(pos, id);
-    client_list = g_tree_lookup(request_parameter_tree, key);
-    if (client_list == NULL) {
-        client_list = g_list_append(client_list, req);
-        g_tree_insert(request_parameter_tree, key, client_list);
-    } else {
-        client_list = g_list_append(client_list, req);
-        g_tree_steal(request_parameter_tree, key);
-        g_tree_insert(request_parameter_tree, key, client_list);
-    }
-
-    get_option(id, pos);
-}
-
-/**
- * Do the initialization required for the API.
- *
- * Create a unix domain socket and bind it to a path in /var/tmp. 
- * Set the socket to non-blocking and init the fd set.
- * Create a tree on which to hang pending client requests.
- */
-void gdigi_api_server_init(void)
-{
-    socklen_t len;
-    struct sockaddr_un addr1, addr2;
-    int flags;
-
-    if (api_sock != -1) {
-        return;
-    }
-
-    api_sock = socket(AF_UNIX, SOCK_DGRAM, 0);
-    if (api_sock < 0) {
-        g_warning("Failed to get server sock: %m");
-        return;
-    }
-
-    (void) unlink(GDIGI_SOCKET_PATH);
-
-    memset(&addr1, '\0', sizeof(addr1));
-    strncpy(addr1.sun_path, GDIGI_SOCKET_PATH, sizeof(addr1.sun_path) - 1);
-    addr1.sun_family = AF_UNIX;
-
-    if (bind(api_sock, (struct sockaddr *)&addr1, sizeof(struct sockaddr_un)) < 0) {
-        g_warning("bind socket error: %m");
-        goto sock_err;
-    }
-
-    if (getsockname(api_sock, (struct sockaddr *)&addr2, &len) < 0) {
-        g_warning("getsockname socket error: %m");
-        goto sock_err;
-    }
-
-    if ((flags = fcntl(api_sock, F_GETFL, 0)) < 0) {
-        g_warning("fcntl get flags error: %m");
-        goto sock_err;
-    }
-
-    if (fcntl(api_sock, F_SETFL, flags | O_NONBLOCK) < 0) {
-        g_warning("fcntl set flags error: %m");
-        goto sock_err;
-    }
-
-    FD_ZERO(&read_socks);
-
-    debug_msg(DEBUG_API, "Got server sock %d\n", api_sock);
-
-    request_parameter_tree = g_tree_new_full(id_position_tree_compare,
-                                             NULL, 
-                                             NULL,
-                                             (GDestroyNotify) request_parameter_free_client_list);
-
-    return;
-
-sock_err:
-    close(api_sock);
-    api_sock = -1;
+                     (GDestroyNotify) request_dbus_parameter_free_client);
 }
 
 /**
@@ -188,17 +85,17 @@ sock_err:
  * \param pos   Paramter position.
  * \param val   New paramter value.
  */
-static void set_parameter_request(guint id, guint pos, guint value)
+static void set_parameter_request(guint pos, guint id, guint value)
 {
     SettingParam param;
-    debug_msg(DEBUG_API, "set_option for id %d pos %d value %d\n",
-                          id, pos, value);
+    debug_msg(DEBUG_API, "set_option for pos %u id %u value %u\n",
+                          pos, id, value);
 
     set_option(id, pos, value);
 
     /* Refresh the gui. */
-    param.id = id;
     param.position = pos;
+    param.id = id;
     param.value = value;
 
      GDK_THREADS_ENTER();
@@ -208,67 +105,264 @@ static void set_parameter_request(guint id, guint pos, guint value)
 }
 
 /**
- * Check if there is a message to process on the client socket.
+ * Process a request_parameter request.
+ *
+ * \param id Id of the requested parameter.
+ * \param pos Position of the requested parameter.
+ * \param msg received dbus message.
+ * \param conn Dbus connection.
  */
-void gdigi_api_server_select(void)
+static void get_dbus_parameter_request(guint pos,
+                                       guint id,
+                                       DBusMessage *msg,
+                                       DBusConnection *conn)
 {
-    int rc, n;
-    socklen_t len;
-    gdigi_api_request_t req;
-    struct sockaddr_un cliaddr;
-    struct timeval none = {0};
+    gpointer *key;
+    GList *client_list;
+    request_dbus_parameter_t *req = g_slice_new(request_dbus_parameter_t);
 
-    FD_SET(api_sock, &read_socks);
-    rc = select(api_sock + 1, &read_socks, NULL, NULL, &none);
-    if (rc < 0) {
-        g_warning("Select socket error: %m");
+    req->id = id;
+    req->position = pos;
+    req->msg = msg;
+    req->conn = conn;
+
+    debug_msg(DEBUG_API, "get_dbus_parameter_request() for pos %u id %u\n",
+                          pos, id);
+
+    key = GDIGI_KEY(pos, id);
+    client_list = g_tree_lookup(request_dbus_parameter_tree, key);
+    if (client_list == NULL) {
+        client_list = g_list_append(client_list, req);
+    } else {
+        client_list = g_list_append(client_list, req);
+        g_tree_steal(request_dbus_parameter_tree, key);
+    }
+    g_tree_insert(request_dbus_parameter_tree, key, client_list);
+
+    get_option(id, pos);
+}
+
+DBusConnection* gdigi_dbus_conn;
+
+/**
+ * Initialize the dbus infrastructure.
+ */
+void gdigi_dbus_init(void)
+{
+    DBusError err;
+    int ret;
+
+    // initialise the error
+    dbus_error_init(&err);
+
+    // connect to the bus and check for errors
+    gdigi_dbus_conn = dbus_bus_get(DBUS_BUS_SESSION, &err);
+    if (dbus_error_is_set(&err)) { 
+       fprintf(stderr, "Connection Error (%s)\n", err.message); 
+       dbus_error_free(&err); 
+    }
+    if (NULL == gdigi_dbus_conn) {
+       fprintf(stderr, "Connection Null\n"); 
+       return;
+    }
+
+    // request our name on the bus and check for errors
+    ret = dbus_bus_request_name(gdigi_dbus_conn,
+                                GDIGI_DBUS_SESSION_NAME,
+                                DBUS_NAME_FLAG_REPLACE_EXISTING ,
+                                &err);
+    if (dbus_error_is_set(&err)) { 
+        fprintf(stderr, "Name Error (%s)\n", err.message); 
+        dbus_error_free(&err);
+    }
+    if (DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER != ret) { 
+        fprintf(stderr, "Not Primary Owner (%d)\n", ret);
         return;
-    } else if (rc == 0) {
-        /* Nothing to do */
+    }
+    request_dbus_parameter_tree =
+        g_tree_new_full(id_position_tree_compare,
+                        NULL, 
+                        NULL,
+                        (GDestroyNotify) request_dbus_parameter_free_client_list);
+
+}
+
+/**
+ * Reply to a get message.
+ *
+ * \param msg   The message to reply to.
+ * \param conn  The connection on which to reply. 
+ * \param val   The value to return.
+ */
+void gdigi_dbus_message_reply_get(DBusMessage *msg, DBusConnection *conn, dbus_uint32_t val)
+{
+    DBusMessage *reply;
+    DBusMessageIter args;
+    dbus_uint32_t serial; 
+
+    debug_msg(DEBUG_API, "gdigi_dbus_message reply() for val %u\n", val);
+
+    reply = dbus_message_new_method_return(msg);
+
+    dbus_message_iter_init_append(reply, &args);
+    dbus_message_iter_append_basic(&args, DBUS_TYPE_UINT32, &val);
+
+    if (!dbus_connection_send(conn, reply, &serial)) {
+        fprintf(stderr, "dbus_connection_send failed.\n");
+    }
+
+    dbus_connection_flush(conn);
+    dbus_message_unref(reply);
+}
+
+/**
+ * Reply to a set message.
+ *
+ * \param msg   The message to reply to.
+ * \param conn  The connection on which to reply.
+ */
+void gdigi_dbus_message_reply_set(DBusMessage *msg, DBusConnection *conn)
+{
+    DBusMessage *reply;
+    DBusMessageIter args;
+    dbus_uint32_t serial; 
+    dbus_uint32_t retval = 0;
+
+    debug_msg(DEBUG_API, "gdigi_dbus_message_reply_set()\n.");
+
+    reply = dbus_message_new_method_return(msg);
+
+    dbus_message_iter_init_append(reply, &args);
+    dbus_message_iter_append_basic(&args, DBUS_TYPE_UINT32, &retval);
+
+    if (!dbus_connection_send(conn, reply, &serial)) {
+        fprintf(stderr, "dbus_connection_send failed.\n");
+    }
+
+    dbus_connection_flush(conn);
+    dbus_message_unref(reply);
+}
+
+// This string is used by the introspection library.
+char *intro_string =
+"        <node name=\"/gdigi/parameter/Object\">\n"
+"          <interface name=\"gdigi.parameter.io\">\n"
+"            <method name=\"get\">\n"
+"              <arg name=\"pos\" type=\"u\" direction=\"in\"/>\n"
+"              <arg name=\"id\" type=\"u\" direction=\"in\"/>\n"
+"              <arg name=\"val\" type=\"u\" direction=\"out\"/>\n"
+"            </method>\n"
+"            <method name=\"set\">\n"
+"              <arg name=\"pos\" type=\"u\" direction=\"in\"/>\n"
+"              <arg name=\"id\" type=\"u\" direction=\"in\"/>\n"
+"              <arg name=\"val\" type=\"u\" direction=\"in\"/>\n"
+"            </method>\n"
+"         </interface>\n"
+"       </node>\n";
+
+/**
+ * Reply to an introspection request. This lets bindings figure out parameter
+ * types automagically.
+ *
+ * \param msg   The message to reply to.
+ * \param conn  The connection on which to reply.
+ */
+void gdigi_dbus_message_reply_introspection(DBusMessage *msg, DBusConnection *conn)
+{
+    DBusMessage *reply;
+    DBusMessageIter args;
+    dbus_uint32_t serial; 
+
+    reply = dbus_message_new_method_return(msg);
+
+    dbus_message_iter_init_append(reply, &args);
+    dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &intro_string);
+
+    if (!dbus_connection_send(conn, reply, &serial)) {
+        fprintf(stderr, "dbus_connection_send failed.\n");
+    }
+
+    dbus_connection_flush(conn);
+    dbus_message_unref(reply);
+}
+
+typedef enum gdigi_dbus_msg {
+    GDIGI_GET_PARAMETER,
+    GDIGI_SET_PARAMETER,
+    GDIGI_INTROSPECTION,
+} gdigi_dbus_msg_t;
+
+/**
+ * Read a message off the dbus.
+ */
+void gdigi_dbus_read()
+{
+    DBusMessage* msg;
+    gdigi_dbus_msg_t msg_type;
+    dbus_uint32_t position;
+    dbus_uint32_t id;
+    dbus_uint32_t value;
+    DBusMessageIter args;
+    
+    dbus_connection_read_write(gdigi_dbus_conn, 0);
+    msg = dbus_connection_pop_message(gdigi_dbus_conn);
+
+    if (NULL == msg) {
         return;
     }
 
-    debug_msg(DEBUG_API, "Read socket.\n");
+    if (dbus_message_is_method_call(msg, "gdigi.parameter.io", "get")) {
+        msg_type = GDIGI_GET_PARAMETER;
+    } else if (dbus_message_is_method_call(msg, "gdigi.parameter.io", "set")) {
+        msg_type = GDIGI_SET_PARAMETER;
+    } else if (dbus_message_is_method_call(msg, "org.freedesktop.DBus.Introspectable", "Introspect")) {
 
-    memset(&req, '\0', sizeof(req));
-    memset(&cliaddr, '\0', sizeof(cliaddr));
-    len = sizeof(struct sockaddr_un);
-    n = recvfrom(api_sock, &req, sizeof(req), 0,
-                 (struct sockaddr *)&cliaddr, &len);
-
-#define HEX_WIDTH 26
-    if (debug_flag_is_set(DEBUG_API)) {
-        printf("%d bytes from client %s:\n", n, cliaddr.sun_path);
-        unsigned char *msg = (unsigned char *)&req;
-        int x;
-        for (x = 0; x < n; x++) {
-            if (x && (x % HEX_WIDTH) == 0) {
-                printf("\n");
-            }
-            printf("%02x ", msg[x]);
-        }
-        if (x % HEX_WIDTH) {
-            printf("\n");
-        }
+        gdigi_dbus_message_reply_introspection(msg, gdigi_dbus_conn);
+        return;
+    } else {
+        fprintf(stderr, "Unknown message\n");
+        return;
     }
 
-    req.op = g_ntohl(req.op);
-    req.id = g_ntohl(req.id);
-    req.position = g_ntohl(req.position);
-    req.value = g_ntohl(req.value);
+    if (!dbus_message_iter_init(msg, &args)) {
+        fprintf(stderr, "Message has no args!\n");
+        return;
+    }
+    
+    if (DBUS_TYPE_UINT32 != dbus_message_iter_get_arg_type(&args)) {
+        fprintf(stderr, "First arg is not a uint32!\n");
+    }
 
-    switch (req.op) {
-    case GDIGI_API_GET_PARAMETER:
-        get_parameter_request(req.id, req.position, &cliaddr, len);
-        break;
+    dbus_message_iter_get_basic(&args, &position);
+    if (!dbus_message_iter_next(&args)) {
+        fprintf(stderr, "Message has too few args!\n");
+        return;
+    }
+    if (DBUS_TYPE_UINT32 != dbus_message_iter_get_arg_type(&args)) {
+        fprintf(stderr, "Second arg is not a uint32!\n");
+    }
+    dbus_message_iter_get_basic(&args, &id);
 
-    case GDIGI_API_SET_PARAMETER:
-        set_parameter_request(req.id, req.position, req.value);
-        break;
+    if (msg_type == GDIGI_SET_PARAMETER) {
 
-    default:
-        g_warning("Unknown client operation 0x%x.\n", req.op);
-        break;
+        if (!dbus_message_iter_next(&args)) {
+            fprintf(stderr, "Message has too few args!\n");
+            return;
+        }
+
+        if (DBUS_TYPE_UINT32 != dbus_message_iter_get_arg_type(&args)) {
+            fprintf(stderr, "Third arg is not a uint32!\n");
+        }
+        dbus_message_iter_get_basic(&args, &value);
+
+        set_parameter_request(position, id, value);
+
+        gdigi_dbus_message_reply_set(msg, gdigi_dbus_conn);
+
+        dbus_message_unref(msg);
+
+    } if (msg_type == GDIGI_GET_PARAMETER) {
+        get_dbus_parameter_request(position, id, msg, gdigi_dbus_conn);
     }
 }
 
@@ -278,27 +372,12 @@ void gdigi_api_server_select(void)
  * \param req   The client request structure.
  * \param val   The value returned to the client.
  */
-static void get_parameter_response(request_parameter_t *req, guint *value)
+static void get_dbus_parameter_response(request_dbus_parameter_t *req, guint *value)
 {
-    gint32 rc;
-    gdigi_api_response_t rsp;
-
-    memset(&rsp, '\0', sizeof(gdigi_api_response_t));
-    rsp.id = g_htonl(req->id);
-    rsp.position = g_htonl(req->position);
-    rsp.value = g_htonl(*value);
-
-    debug_msg(DEBUG_API, "Reply to client %s with value %d\n",
-                         req->client_address.sun_path, *value);
-
-    rc = sendto(api_sock, &rsp, sizeof(gdigi_api_response_t), 0,
-                (struct sockaddr *)&req->client_address,
-                req->client_address_len);
-    if (rc < 0) {
-        g_warning("Failed to respond to client %s: %m",
-                   req->client_address.sun_path);
-        return;
-    }
+    // Send back the three parameters: position/id/value.
+    DBusMessage *msg = req->msg;
+    gdigi_dbus_message_reply_get(req->msg, req->conn, *value);
+    dbus_message_unref(msg);
 }
 
 /**
@@ -309,31 +388,26 @@ static void get_parameter_response(request_parameter_t *req, guint *value)
  * \param pos   Parameter position.
  * \param val   Parameter value.
  */
-void gdigi_api_server_get_parameter_response(guint id, guint pos, guint value)
+void gdigi_api_server_get_dbus_parameter_response(guint pos, guint id, guint value)
 {
     GList *client_list;
     gpointer key = GDIGI_KEY(pos, id);
 
-    if (api_sock < 0) {
-        return;
-    }
+    debug_msg(DEBUG_API, "Looking for dbus response for pos %u id %u\n", id, pos);
 
-    debug_msg(DEBUG_API, "Looking for response for id %d pos %d\n", id, pos);
-
-    client_list = g_tree_lookup(request_parameter_tree, key);
+    client_list = g_tree_lookup(request_dbus_parameter_tree, key);
     if (!client_list) {
         return;
     }
-    g_list_foreach(client_list, (GFunc)get_parameter_response, &value);
 
-    g_tree_remove(request_parameter_tree, key);
+    g_list_foreach(client_list, (GFunc)get_dbus_parameter_response, &value);
+    g_tree_remove(request_dbus_parameter_tree, key);
 }
 
-void gdigi_api_server_fini(void)
+/**
+ * Do any cleanup required on exit.
+ */
+void gdigi_dbus_fini(void)
 {
-    if (api_sock >= 0) {
-        close(api_sock);
-        api_sock = -1;
-        unlink(GDIGI_SOCKET_PATH);
-    }
+    // Whatever we need to close down the dbus server.
 }

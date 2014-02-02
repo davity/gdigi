@@ -449,9 +449,9 @@ void push_message(GString *msg)
              * If there's an outstanding request for a parameter's value,
              * send the reply.
              */
-            gdigi_api_server_get_parameter_response(param->id,
-                                                    param->position,
-                                                    param->value);
+            gdigi_api_server_get_dbus_parameter_response(param->position,
+                                                         param->id,
+                                                         param->value);
 
             GDK_THREADS_ENTER();
             apply_setting_param_to_gui(param);
@@ -593,7 +593,7 @@ gpointer read_data_thread(gboolean *stop)
     struct pollfd *pfds;
     GString *string = NULL;
 
-    gdigi_api_server_init();
+    gdigi_dbus_init();
 
     npfds = snd_rawmidi_poll_descriptors_count(input);
     pfds = alloca(npfds * sizeof(struct pollfd));
@@ -604,7 +604,7 @@ gpointer read_data_thread(gboolean *stop)
         int i, length;
         unsigned short revents;
 
-        gdigi_api_server_select();
+        gdigi_dbus_read();
 
         /* SysEx messages can't contain bytes with 8th bit set.
            memset our buffer to 0xFF, so if for some reason we'll
@@ -1579,7 +1579,7 @@ int main(int argc, char *argv[]) {
 
                 /* disable GUI mode */
                 set_option(GUI_MODE_ON_OFF, GLOBAL_POSITION, 0);
-                gdigi_api_server_fini();
+                gdigi_dbus_fini();
             }
         }
     }
